@@ -1,0 +1,6 @@
+/* Bet Buddy Global Stylesheet */
+@layer base {
+  body {
+    -webkit-tap-highlight-color: transparent;
+  }
+}

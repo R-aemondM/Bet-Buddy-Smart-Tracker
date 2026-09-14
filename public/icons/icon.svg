@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0f172a"/>
+      <stop offset="100%" stop-color="#1e293b"/>
+    </linearGradient>
+    <linearGradient id="accentGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#3b82f6"/>
+      <stop offset="100%" stop-color="#2563eb"/>
+    </linearGradient>
+    <linearGradient id="glowGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#10b981"/>
+      <stop offset="100%" stop-color="#059669"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#bgGrad)"/>
+  <rect x="24" y="24" width="464" height="464" rx="96" fill="none" stroke="#334155" stroke-width="6"/>
+  
+  <!-- Shield/Ticket base -->
+  <path d="M156 120 C156 120, 256 96, 256 96 C256 96, 356 120, 356 120 C356 260, 256 370, 256 400 C256 370, 156 260, 156 120 Z" 
+        fill="url(#accentGrad)" opacity="0.2" stroke="#3b82f6" stroke-width="12" stroke-linejoin="round"/>
+  
+  <!-- Trend Analytics Line -->
+  <path d="M170 290 L220 230 L280 270 L340 180" 
+        fill="none" stroke="#60a5fa" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/>
+  
+  <!-- Checkmark -->
+  <circle cx="340" cy="180" r="18" fill="#10b981"/>
+  <path d="M200 240 L240 280 L315 195" 
+        fill="none" stroke="#ffffff" stroke-width="18" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

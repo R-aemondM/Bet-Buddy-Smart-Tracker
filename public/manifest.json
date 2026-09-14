@@ -1,0 +1,94 @@
+{
+  "id": "bbrm_2525_v1",
+  "name": "Bet Buddy Smart Tracker",
+  "short_name": "Bet Buddy",
+  "description": "Bet before you bet",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": [
+    "standalone",
+    "window-controls-overlay"
+  ],
+  "background_color": "#ffffff",
+  "theme_color": "#ffffff",
+  "orientation": "any",
+  "dir": "ltr",
+  "lang": "en",
+  "prefer_related_applications": false,
+  "categories": [
+    "sports",
+    "finance",
+    "utilities"
+  ],
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/screenshots/screenshot-wide.png",
+      "sizes": "1280x720",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "Bet Buddy Desktop Dashboard and Slip Tracker"
+    },
+    {
+      "src": "/screenshots/screenshot-narrow.png",
+      "sizes": "720x1280",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Bet Buddy Mobile Overview and Active Slips"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "New Bet Slip",
+      "short_name": "New Bet",
+      "description": "Create and track a new betting slip",
+      "url": "/?tab=create",
+      "icons": [
+        {
+          "src": "/icons/icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "Betting Analytics",
+      "short_name": "Analytics",
+      "description": "View win rates and betting folder ROI",
+      "url": "/?tab=stats",
+      "icons": [
+        {
+          "src": "/icons/icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,6 @@
+{
+  "name": "Bet Buddy",
+  "description": "Bet before you bet",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
