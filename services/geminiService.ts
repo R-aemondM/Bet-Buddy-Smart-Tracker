@@ -187,12 +187,22 @@ export const validateLegsWithGemini = async (legs: Leg[]): Promise<ValidationRes
   } catch (error: any) {
     const errMsg = String(error?.message || error);
     const isQuota = errMsg.includes('429') || errMsg.includes('quota') || errMsg.includes('exhausted') || errMsg.includes('LIMIT');
-    if (isQuota) {
+    const isLeaked = errMsg.includes('leaked') || errMsg.includes('PERMISSION_DENIED') || errMsg.includes('403');
+    const isMissingKey = errMsg.includes('API key') || errMsg.includes('apiKey');
+
+    if (isLeaked) {
+      console.error("Gemini Validation Error: API key was revoked (reported as leaked).", errMsg);
+      throw new Error("API key was reported as leaked and revoked by Google. Please generate a fresh GEMINI_API_KEY.");
+    } else if (isQuota) {
       console.warn("Gemini Validation Warning (Quota Limit Exceeded):", errMsg);
+      throw new Error("Gemini API rate limit or quota exceeded (429). Please try again later or settle manually.");
+    } else if (isMissingKey) {
+      console.error("Gemini Validation Error: Missing API key.", errMsg);
+      throw new Error("Gemini API key is not configured. Please set GEMINI_API_KEY.");
     } else {
       console.error("Gemini Validation Error:", error);
+      throw error;
     }
-    throw error;
   }
 };
 

@@ -137,10 +137,14 @@ const SlipCard: React.FC<SlipCardProps> = ({ slip, onUpdate, onEdit, onDelete, s
     } catch (error: any) {
       console.error("AI check error:", error);
       const msg = String(error?.message || error);
-      if (msg.includes('429') || msg.includes('quota') || msg.includes('exhausted') || msg.includes('LIMIT')) {
+      if (msg.includes('leaked') || msg.includes('PERMISSION_DENIED') || msg.includes('403')) {
+        setErrorMessage("API key reported as leaked and revoked by Google. Settle manually or update GEMINI_API_KEY.");
+      } else if (msg.includes('configured') || msg.includes('missing') || msg.includes('API key')) {
+        setErrorMessage("Gemini API key is not configured. Please settle manually or configure GEMINI_API_KEY.");
+      } else if (msg.includes('429') || msg.includes('quota') || msg.includes('exhausted') || msg.includes('LIMIT')) {
         setErrorMessage("Gemini API quota exceeded (429 rate limit). Please settle this slip manually.");
       } else {
-        setErrorMessage("Verification failed. Please check connection or settle manually.");
+        setErrorMessage("Verification failed. Please check connection or settle manually with the Gavel icon.");
       }
     } finally {
       setChecking(false);
@@ -180,7 +184,11 @@ const SlipCard: React.FC<SlipCardProps> = ({ slip, onUpdate, onEdit, onDelete, s
     } catch (error: any) {
       console.error("AI leg check error:", error);
       const msg = String(error?.message || error);
-      if (msg.includes('429') || msg.includes('quota') || msg.includes('exhausted') || msg.includes('LIMIT')) {
+      if (msg.includes('leaked') || msg.includes('PERMISSION_DENIED') || msg.includes('403')) {
+        setErrorMessage("API key reported as leaked by Google. Settle manually or update GEMINI_API_KEY.");
+      } else if (msg.includes('configured') || msg.includes('missing') || msg.includes('API key')) {
+        setErrorMessage("Gemini API key is not configured. Please settle manually.");
+      } else if (msg.includes('429') || msg.includes('quota') || msg.includes('exhausted') || msg.includes('LIMIT')) {
         setErrorMessage("Gemini API quota exceeded (429 rate limit). Please settle this leg manually.");
       } else {
         setErrorMessage("Failed to fetch score. Please try again or settle manually.");

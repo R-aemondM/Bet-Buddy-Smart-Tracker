@@ -307,14 +307,23 @@ const App: React.FC = () => {
       } catch (err: any) {
         const errMsg = String(err?.message || err);
         const isQuota = errMsg.includes('429') || errMsg.includes('quota') || errMsg.includes('exhausted') || errMsg.includes('LIMIT');
-        if (isQuota) {
+        const isLeaked = errMsg.includes('leaked') || errMsg.includes('PERMISSION_DENIED') || errMsg.includes('403');
+        const isMissingKey = errMsg.includes('configured') || errMsg.includes('missing') || errMsg.includes('API key');
+
+        if (isLeaked) {
+          console.error(`Autocheck batch failed (leaked key):`, errMsg);
+          setGeminiError('leaked_key');
+        } else if (isQuota) {
           console.warn(`Autocheck batch suspended due to API quota limit:`, errMsg);
           setGeminiError('quota');
+        } else if (isMissingKey) {
+          console.error(`Autocheck batch failed (missing key):`, errMsg);
+          setGeminiError('missing_key');
         } else {
           console.error(`Autocheck batch failed:`, err);
           setGeminiError('api_error');
         }
-        break; // Stop calling more batches once a quota limit/API error is encountered
+        break; // Stop calling more batches once an error is encountered
       }
 
       processedLegsCount += batch.length;
@@ -590,12 +599,22 @@ const App: React.FC = () => {
               </div>
               <div>
                 <h4 className="font-bold text-textMain">
-                  {geminiError === 'quota' ? 'Gemini API Quota Exceeded' : 'Gemini Verification Service Unavailable'}
+                  {geminiError === 'quota'
+                    ? 'Gemini API Quota Exceeded (429)'
+                    : geminiError === 'leaked_key'
+                    ? 'Gemini API Key Revoked by Google'
+                    : geminiError === 'missing_key'
+                    ? 'Gemini API Key Missing'
+                    : 'Gemini Verification Service Unavailable'}
                 </h4>
                 <p className="text-sm text-textMuted mt-0.5 leading-relaxed">
                   {geminiError === 'quota'
                     ? "Your Gemini API free-tier quota is currently exhausted (429 rate limit). Automatic background checks are temporarily paused. You can still settle your bet slips manually using the manual settlement (Gavel) icon on any active slip."
-                    : "The Gemini verification service is experiencing transient connection issues or is temporarily offline. You can click 'Retry' to check again, or manually settle any active bet slip at any time."}
+                    : geminiError === 'leaked_key'
+                    ? "Google automatically blocked this Gemini API key because it was exposed in the public code/repository. A fresh GEMINI_API_KEY needs to be generated in Google AI Studio. In the meantime, you can manually settle any bet slip using the Gavel icon."
+                    : geminiError === 'missing_key'
+                    ? "No GEMINI_API_KEY was found in your deployment environment. You can settle your bet slips manually using the Gavel icon."
+                    : "The Gemini verification service is experiencing connection issues. You can click 'Retry' to check again, or manually settle any active bet slip at any time."}
                 </p>
               </div>
             </div>
