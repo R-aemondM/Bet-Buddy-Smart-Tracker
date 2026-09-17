@@ -5,9 +5,9 @@ let aiClient: GoogleGenAI | null = null;
 
 const getAiClient = (): GoogleGenAI => {
   if (!aiClient) {
-    const apiKey = (typeof process !== 'undefined' && process.env) 
-      ? (process.env.API_KEY || process.env.GEMINI_API_KEY || '') 
-      : '';
+    const envProcess = (typeof process !== 'undefined' && process.env) ? process.env : {} as any;
+    const metaEnv = (typeof import.meta !== 'undefined' && (import.meta as any).env) ? (import.meta as any).env : {};
+    const apiKey = envProcess.API_KEY || envProcess.GEMINI_API_KEY || metaEnv.VITE_GEMINI_API_KEY || metaEnv.GEMINI_API_KEY || '';
     if (!apiKey) {
       throw new Error("Gemini API key is not configured. Please set GEMINI_API_KEY.");
     }
