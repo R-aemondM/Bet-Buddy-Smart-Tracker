@@ -38,6 +38,9 @@ export enum BetType {
   ONE_UP = '1UP',
   TWO_UP = '2UP',
   THREE_UP = '3UP',
+
+  // Outrights / Futures
+  OUTRIGHT = 'OUTRIGHT',
 }
 
 export enum LegStatus {
@@ -138,6 +141,8 @@ export function formatMarketName(type: string): string {
     '1UP': '1 Up Early Payout',
     '2UP': '2 Up Early Payout',
     '3UP': '3 Up Early Payout',
+    'OUTRIGHT': 'Outrights',
+    'OUTRIGHTS': 'Outrights',
   };
 
   const key = type.toUpperCase().trim();

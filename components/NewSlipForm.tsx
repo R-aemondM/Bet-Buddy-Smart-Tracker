@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Plus, Trash2, Save, ClipboardPaste, X, Edit3, Folder, Globe } from 'lucide-react';
+import { Plus, Trash2, Save, ClipboardPaste, X, Edit3, Folder, Globe, Trophy } from 'lucide-react';
 import { BetType, Leg, LegStatus, Slip, SlipStatus, Currency, CURRENCY_SYMBOLS } from '../types';
 
 interface NewSlipFormProps {
@@ -69,7 +69,7 @@ export const NewSlipForm: React.FC<NewSlipFormProps> = ({ initialData, onSave, o
     localStorage.removeItem('smartbet_draft_legs');
   };
 
-  const addLeg = () => {
+  const addMatchLeg = () => {
     setLegs([
       ...legs,
       {
@@ -83,6 +83,23 @@ export const NewSlipForm: React.FC<NewSlipFormProps> = ({ initialData, onSave, o
       }
     ]);
   };
+
+  const addOutrightLeg = () => {
+    setLegs([
+      ...legs,
+      {
+        id: generateId(),
+        matchName: '',
+        league: '',
+        date: new Date().toISOString().split('T')[0],
+        type: BetType.OUTRIGHT,
+        selection: 'Winner',
+        status: LegStatus.PENDING,
+      }
+    ]);
+  };
+
+  const addLeg = addMatchLeg;
 
   const removeLeg = (id: string) => {
     if (legs.length > 1) {
@@ -120,6 +137,7 @@ export const NewSlipForm: React.FC<NewSlipFormProps> = ({ initialData, onSave, o
            if (value === BetType.EXACT_GOALS) updated.selection = '2 Goals';
            if (value === BetType.GOAL_RANGE) updated.selection = '2-3 Goals';
            if (value === BetType.ONE_UP || value === BetType.TWO_UP || value === BetType.THREE_UP) updated.selection = 'Home';
+           if (value === BetType.OUTRIGHT) updated.selection = 'Winner';
         }
         return updated;
       }
@@ -237,6 +255,7 @@ export const NewSlipForm: React.FC<NewSlipFormProps> = ({ initialData, onSave, o
         else if (mUpper.includes('RED CARD') || mUpper.includes('SENDING OFF')) type = BetType.SENDING_OFF;
         else if (mUpper.includes('EXACT GOAL') || mUpper.includes('NUMBER OF GOALS')) type = BetType.EXACT_GOALS;
         else if (mUpper.includes('GOAL RANGE') || mUpper.includes('GOALS RANGE') || mUpper.includes('GOAL INTERVAL')) type = BetType.GOAL_RANGE;
+        else if (mUpper.includes('OUTRIGHT') || mUpper.includes('FUTURES') || mUpper.includes('TOURNAMENT') || mUpper.includes('CHAMPION')) type = BetType.OUTRIGHT;
 
         // Selection Matching for Team Names
         if ([BetType.MATCH_WINNER, BetType.DRAW_NO_BET, BetType.CORNER_1X2, BetType.BOOKINGS_1X2, BetType.FIRST_TEAM_TO_SCORE].includes(type)) {
@@ -275,8 +294,12 @@ export const NewSlipForm: React.FC<NewSlipFormProps> = ({ initialData, onSave, o
   };
 
   const handleSave = () => {
+    if (legs.length === 0) {
+      alert("Please add at least one match or outright selection.");
+      return;
+    }
     if (legs.some(l => !l.matchName)) {
-      alert("Please enter a match name for all selections.");
+      alert("Please enter a match or tournament name for all selections.");
       return;
     }
     const numStake = parseFloat(stake) || 0;
@@ -293,6 +316,9 @@ export const NewSlipForm: React.FC<NewSlipFormProps> = ({ initialData, onSave, o
     });
     clearDraft();
   };
+
+  const matchLegs = legs.filter(l => l.type !== BetType.OUTRIGHT);
+  const outrightLegs = legs.filter(l => l.type === BetType.OUTRIGHT);
 
   return (
     <div className="bg-surface rounded-xl shadow-xl border border-borderBase overflow-hidden relative transition-colors">
@@ -315,8 +341,15 @@ export const NewSlipForm: React.FC<NewSlipFormProps> = ({ initialData, onSave, o
         </div>
 
         <div className="space-y-4">
-          <label className="text-sm font-medium text-textMuted uppercase tracking-wider">Match Selections</label>
-          {legs.map((leg) => {
+          <div className="flex items-center justify-between">
+            <label className="text-sm font-medium text-textMuted uppercase tracking-wider flex items-center gap-2">
+              Match Selections
+            </label>
+          </div>
+          {matchLegs.length === 0 && (
+            <p className="text-xs text-textMuted italic py-1">No individual match selections added yet.</p>
+          )}
+          {matchLegs.map((leg) => {
             const { home, away } = parseTeams(leg.matchName);
             return (
               <div key={leg.id} className="p-4 bg-background rounded-lg border border-borderBase hover:border-textMuted transition-colors space-y-4">
@@ -342,6 +375,9 @@ export const NewSlipForm: React.FC<NewSlipFormProps> = ({ initialData, onSave, o
                   <div className="space-y-1">
                     <label className="text-xs text-textMuted font-bold uppercase">Market</label>
                     <select value={leg.type} onChange={(e) => updateLeg(leg.id, 'type', e.target.value)} className="w-full bg-inputBg border border-borderBase rounded px-3 py-2 text-textMain text-sm focus:outline-none focus:border-primary">
+                      <optgroup label="Outrights">
+                        <option value={BetType.OUTRIGHT}>Outrights</option>
+                      </optgroup>
                       <optgroup label="Popular">
                         <option value={BetType.MATCH_WINNER}>1X2 (Full Time)</option>
                         <option value={BetType.FIRST_TEAM_TO_SCORE}>First Team To Score</option>
@@ -386,6 +422,27 @@ export const NewSlipForm: React.FC<NewSlipFormProps> = ({ initialData, onSave, o
                   </div>
                   <div className="space-y-1">
                     <label className="text-xs text-textMuted font-bold uppercase">Selection</label>
+                    {leg.type === BetType.OUTRIGHT ? (
+                      <div className="relative">
+                        <input
+                          type="text"
+                          list={`outright-options-${leg.id}`}
+                          value={leg.selection}
+                          onChange={(e) => updateLeg(leg.id, 'selection', e.target.value)}
+                          placeholder="e.g. Arsenal (Winner), Real Madrid, Top 4..."
+                          className="w-full bg-inputBg border border-borderBase rounded px-3 py-2 text-textMain text-sm focus:outline-none focus:border-primary"
+                        />
+                        <datalist id={`outright-options-${leg.id}`}>
+                          {home && home !== 'Home' && <option value={`${home} (Winner)`} />}
+                          {away && away !== 'Away' && <option value={`${away} (Winner)`} />}
+                          <option value="Winner / Champion" />
+                          <option value="Top 4 Finish" />
+                          <option value="To Reach Final" />
+                          <option value="To Qualify" />
+                          <option value="Relegation" />
+                        </datalist>
+                      </div>
+                    ) : (
                     <select value={leg.selection} onChange={(e) => updateLeg(leg.id, 'selection', e.target.value)} className="w-full bg-inputBg border border-borderBase rounded px-3 py-2 text-textMain text-sm focus:outline-none focus:border-primary">
                       {leg.type === BetType.MATCH_WINNER && (
                         <>
@@ -635,16 +692,108 @@ export const NewSlipForm: React.FC<NewSlipFormProps> = ({ initialData, onSave, o
                           <option value="5+ Goals">5+ Goals</option>
                         </>
                       )}
-                      {!([BetType.MATCH_WINNER, BetType.FIRST_TEAM_TO_SCORE, BetType.HALF_TIME_WINNER, BetType.HALF_TIME_1ST_CORNER, BetType.BTTS, BetType.SENDING_OFF, BetType.TEAM_TOTAL, BetType.OVER_UNDER, BetType.EXACT_GOALS, BetType.GOAL_RANGE, BetType.WIN_EITHER_HALF, BetType.HANDICAP, BetType.CORNER_HANDICAP, BetType.TEN_MINS_1X2, BetType.MATCH_RESULT_AND_BTTS, BetType.ODD_EVEN, BetType.BOOKINGS, BetType.BOOKINGS_1X2, BetType.CORNER_1X2, BetType.TOTAL_CORNERS, BetType.ONE_UP, BetType.TWO_UP, BetType.THREE_UP].includes(leg.type as BetType)) && (
+                      {!([BetType.MATCH_WINNER, BetType.FIRST_TEAM_TO_SCORE, BetType.HALF_TIME_WINNER, BetType.HALF_TIME_1ST_CORNER, BetType.BTTS, BetType.SENDING_OFF, BetType.TEAM_TOTAL, BetType.OVER_UNDER, BetType.EXACT_GOALS, BetType.GOAL_RANGE, BetType.WIN_EITHER_HALF, BetType.HANDICAP, BetType.CORNER_HANDICAP, BetType.TEN_MINS_1X2, BetType.MATCH_RESULT_AND_BTTS, BetType.ODD_EVEN, BetType.BOOKINGS, BetType.BOOKINGS_1X2, BetType.CORNER_1X2, BetType.TOTAL_CORNERS, BetType.ONE_UP, BetType.TWO_UP, BetType.THREE_UP, BetType.OUTRIGHT].includes(leg.type as BetType)) && (
                         <option value={leg.selection}>{leg.selection}</option>
                       )}
                     </select>
+                    )}
                   </div>
                 </div>
               </div>
             );
           })}
-          <button onClick={addLeg} className="w-full py-3 border border-dashed border-borderBase rounded-lg text-textMuted hover:text-textMain hover:bg-inputBg transition-all flex items-center justify-center gap-2"><Plus size={18} /> Add Match</button>
+          <button type="button" onClick={addMatchLeg} className="w-full py-3 border border-dashed border-borderBase rounded-lg text-textMuted hover:text-textMain hover:bg-inputBg transition-all flex items-center justify-center gap-2"><Plus size={18} /> Add Match</button>
+        </div>
+
+        {/* Outrights */}
+        <div className="space-y-4 pt-2">
+          <div className="flex items-center justify-between">
+            <label className="text-sm font-medium text-textMuted uppercase tracking-wider flex items-center gap-2">
+              <Trophy size={16} className="text-warning" />
+              Outrights
+            </label>
+          </div>
+
+          {outrightLegs.length === 0 && (
+            <p className="text-xs text-textMuted italic py-1">No outright tournament or season selections added yet.</p>
+          )}
+
+          {outrightLegs.map((leg) => (
+            <div key={leg.id} className="p-4 bg-background rounded-lg border border-borderBase hover:border-warning/50 transition-colors space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+                <div className="md:col-span-5 space-y-1">
+                  <label className="text-xs text-textMuted font-bold uppercase">Tournament / Competition</label>
+                  <input
+                    type="text"
+                    value={leg.matchName}
+                    onChange={(e) => updateLeg(leg.id, 'matchName', e.target.value)}
+                    placeholder="e.g. Premier League 2024/25, Champions League"
+                    className="w-full bg-inputBg border border-borderBase rounded px-3 py-2 text-textMain text-sm focus:outline-none focus:border-primary"
+                  />
+                </div>
+                <div className="md:col-span-3 space-y-1">
+                  <label className="text-xs text-textMuted font-bold uppercase">Sport / Category</label>
+                  <input
+                    type="text"
+                    list="leagues-list"
+                    value={leg.league || ''}
+                    onChange={(e) => updateLeg(leg.id, 'league', e.target.value)}
+                    placeholder="e.g. Football, Basketball..."
+                    className="w-full bg-inputBg border border-borderBase rounded px-3 py-2 text-textMain text-sm focus:outline-none focus:border-primary"
+                  />
+                </div>
+                <div className="md:col-span-3 space-y-1">
+                  <label className="text-xs text-textMuted font-bold uppercase">Settlement Date</label>
+                  <input
+                    type="date"
+                    value={leg.date}
+                    onChange={(e) => updateLeg(leg.id, 'date', e.target.value)}
+                    className="w-full bg-inputBg border border-borderBase rounded px-3 py-2 text-textMain text-sm focus:outline-none focus:border-primary"
+                  />
+                </div>
+                <div className="md:col-span-1 flex items-end justify-center pb-1">
+                  <button
+                    type="button"
+                    onClick={() => removeLeg(leg.id)}
+                    disabled={legs.length === 1}
+                    className="p-2 rounded hover:bg-danger/20 text-danger/80 transition-colors disabled:opacity-30"
+                    title="Remove Outright"
+                  >
+                    <Trash2 size={18} />
+                  </button>
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs text-textMuted font-bold uppercase">Selection / Backed Outcome</label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    list={`outright-options-${leg.id}`}
+                    value={leg.selection}
+                    onChange={(e) => updateLeg(leg.id, 'selection', e.target.value)}
+                    placeholder="e.g. Arsenal (Winner), Real Madrid, Top 4..."
+                    className="w-full bg-inputBg border border-borderBase rounded px-3 py-2 text-textMain text-sm focus:outline-none focus:border-primary"
+                  />
+                  <datalist id={`outright-options-${leg.id}`}>
+                    <option value="Winner / Champion" />
+                    <option value="Top 4 Finish" />
+                    <option value="To Reach Final" />
+                    <option value="To Qualify" />
+                    <option value="Relegation" />
+                  </datalist>
+                </div>
+              </div>
+            </div>
+          ))}
+
+          <button
+            type="button"
+            onClick={addOutrightLeg}
+            className="w-full py-3 border border-dashed border-borderBase hover:border-warning/60 rounded-lg text-textMuted hover:text-warning hover:bg-warning/5 transition-all flex items-center justify-center gap-2"
+          >
+            <Plus size={18} /> Add Outright
+          </button>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-6 border-t border-borderBase">

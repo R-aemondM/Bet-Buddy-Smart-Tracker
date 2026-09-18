@@ -7,7 +7,15 @@ const getAiClient = (): GoogleGenAI => {
   if (!aiClient) {
     const envProcess = (typeof process !== 'undefined' && process.env) ? process.env : {} as any;
     const metaEnv = (typeof import.meta !== 'undefined' && (import.meta as any).env) ? (import.meta as any).env : {};
-    const apiKey = envProcess.API_KEY || envProcess.GEMINI_API_KEY || metaEnv.VITE_GEMINI_API_KEY || metaEnv.GEMINI_API_KEY || '';
+    const apiKey = envProcess.GEMINI_API_KEY 
+      || envProcess.VITE_GEMINI_API_KEY 
+      || envProcess.API_KEY 
+      || envProcess.EXAMPLE_KEY
+      || metaEnv.VITE_GEMINI_API_KEY 
+      || metaEnv.GEMINI_API_KEY 
+      || metaEnv.API_KEY 
+      || metaEnv.EXAMPLE_KEY 
+      || '';
     if (!apiKey) {
       throw new Error("Gemini API key is not configured. Please set GEMINI_API_KEY.");
     }
@@ -86,6 +94,10 @@ export const validateLegsWithGemini = async (legs: Leg[]): Promise<ValidationRes
            2) Or, if the match ends (FT) and the selected team won the match (e.g. a 1-0 win for Home but never led by 2 goals, Home selection is still WON).
          - Settle as LOST if: The match is FT, the selected team did not win, and they never went 1, 2, or 3 goals ahead during the match.
          - Settle as PENDING if: The match is LIVE/not started, and they have not met the early payout condition yet.
+       - OUTRIGHT / FUTURES: Tournament, league, or season-long competition bets (e.g. "Premier League Winner", "Champions League Winner", "Super Bowl Winner", "Top Goalscorer").
+         * Settle as "WON" if the tournament/competition has concluded and the backed selection won or clinched the title (or mathematically crowned champion).
+         * Settle as "LOST" if the competition concluded and another team/player won, or if the backed selection has been officially eliminated.
+         * Settle as "PENDING" if the competition or season is still ongoing and the selection remains in contention.
     
     INPUTS:
     ${legsDescription}
@@ -103,15 +115,31 @@ export const validateLegsWithGemini = async (legs: Leg[]): Promise<ValidationRes
     \`\`\`
   `;
 
+  // Helper function to call Gemini with automatic retry on 429 rate limit
+  const executeCallWithRetry = async (retries = 2, delayMs = 2500): Promise<any> => {
+    try {
+      return await ai.models.generateContent({
+        model: "gemini-3.8-flash",
+        contents: prompt,
+        config: {
+          tools: [{ googleSearch: {} }],
+          temperature: 0,
+        },
+      });
+    } catch (err: any) {
+      const errMsg = String(err?.message || err);
+      const isQuota = errMsg.includes('429') || errMsg.includes('quota') || errMsg.includes('exhausted') || errMsg.includes('LIMIT');
+      if (isQuota && retries > 0) {
+        console.warn(`[Gemini API] Quota/Rate limit hit (429). Retrying in ${delayMs}ms... (${retries} retries left)`);
+        await new Promise(resolve => setTimeout(resolve, delayMs));
+        return executeCallWithRetry(retries - 1, delayMs * 1.5);
+      }
+      throw err;
+    }
+  };
+
   try {
-    const response = await ai.models.generateContent({
-      model: "gemini-3.8-flash",
-      contents: prompt,
-      config: {
-        tools: [{ googleSearch: {} }],
-        temperature: 0,
-      },
-    });
+    const response = await executeCallWithRetry();
 
     const text = (response.text || '').trim();
     

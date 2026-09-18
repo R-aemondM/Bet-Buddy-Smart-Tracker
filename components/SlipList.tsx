@@ -142,7 +142,7 @@ const SlipCard: React.FC<SlipCardProps> = ({ slip, onUpdate, onEdit, onDelete, s
       } else if (msg.includes('configured') || msg.includes('missing') || msg.includes('API key')) {
         setErrorMessage("Gemini API key is not configured. Please settle manually or configure GEMINI_API_KEY.");
       } else if (msg.includes('429') || msg.includes('quota') || msg.includes('exhausted') || msg.includes('LIMIT')) {
-        setErrorMessage("Gemini API quota exceeded (429 rate limit). Please settle this slip manually.");
+        setErrorMessage("Gemini API rate limit reached (429). Please wait 30-60 seconds to retry, or settle manually with the Gavel icon.");
       } else {
         setErrorMessage("Verification failed. Please check connection or settle manually with the Gavel icon.");
       }

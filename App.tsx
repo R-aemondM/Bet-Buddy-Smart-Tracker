@@ -333,9 +333,9 @@ const App: React.FC = () => {
       );
       setAutocheckProgress({ current: estimatedSlipsCompleted, total: pendingSlips.length });
 
-      // If we have more batches, wait a small throttle delay to avoid hitting rate limits
+      // If we have more batches, wait a safe throttle delay to respect free-tier per-minute rate limits
       if (b < legBatches.length - 1) {
-        await new Promise(resolve => setTimeout(resolve, 800));
+        await new Promise(resolve => setTimeout(resolve, 2000));
       }
     }
     
