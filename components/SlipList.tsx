@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { ChevronDown, ChevronUp, RefreshCw, Trophy, XCircle, Clock, Check, Pencil, Gavel, Save, X, Ban, Folder, Info, Activity, Trash2, Lock } from 'lucide-react';
+import { ChevronDown, ChevronUp, RefreshCw, Trophy, XCircle, Clock, Check, Pencil, Gavel, Save, X, Ban, Folder, Info, Activity, Trash2, Lock, AlertTriangle } from 'lucide-react';
 import { Slip, SlipStatus, Leg, LegStatus, Currency, CURRENCY_SYMBOLS, formatMarketName } from '../types';
 import { validateSlipWithGemini, validateLegsWithGemini } from '../services/geminiService';
 
@@ -137,7 +137,9 @@ const SlipCard: React.FC<SlipCardProps> = ({ slip, onUpdate, onEdit, onDelete, s
     } catch (error: any) {
       console.error("AI check error:", error);
       const msg = String(error?.message || error);
-      if (msg.includes('leaked') || msg.includes('PERMISSION_DENIED') || msg.includes('403')) {
+      if (msg.includes('invalid') || msg.includes('API_KEY_INVALID')) {
+        setErrorMessage("Gemini API key is invalid or incomplete. Please verify your GEMINI_API_KEY.");
+      } else if (msg.includes('leaked') || msg.includes('PERMISSION_DENIED') || msg.includes('403')) {
         setErrorMessage("API key reported as leaked and revoked by Google. Settle manually or update GEMINI_API_KEY.");
       } else if (msg.includes('configured') || msg.includes('missing') || msg.includes('API key')) {
         setErrorMessage("Gemini API key is not configured. Please settle manually or configure GEMINI_API_KEY.");
@@ -184,7 +186,9 @@ const SlipCard: React.FC<SlipCardProps> = ({ slip, onUpdate, onEdit, onDelete, s
     } catch (error: any) {
       console.error("AI leg check error:", error);
       const msg = String(error?.message || error);
-      if (msg.includes('leaked') || msg.includes('PERMISSION_DENIED') || msg.includes('403')) {
+      if (msg.includes('invalid') || msg.includes('API_KEY_INVALID')) {
+        setErrorMessage("Gemini API key is invalid or incomplete. Please verify your GEMINI_API_KEY.");
+      } else if (msg.includes('leaked') || msg.includes('PERMISSION_DENIED') || msg.includes('403')) {
         setErrorMessage("API key reported as leaked by Google. Settle manually or update GEMINI_API_KEY.");
       } else if (msg.includes('configured') || msg.includes('missing') || msg.includes('API key')) {
         setErrorMessage("Gemini API key is not configured. Please settle manually.");

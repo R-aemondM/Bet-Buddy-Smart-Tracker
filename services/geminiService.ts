@@ -3,22 +3,39 @@ import { Slip, Leg, LegStatus, ValidationResult } from "../types";
 
 let aiClient: GoogleGenAI | null = null;
 
-const getAiClient = (): GoogleGenAI => {
-  if (!aiClient) {
-    const envProcess = (typeof process !== 'undefined' && process.env) ? process.env : {} as any;
-    const metaEnv = (typeof import.meta !== 'undefined' && (import.meta as any).env) ? (import.meta as any).env : {};
-    const apiKey = envProcess.GEMINI_API_KEY 
-      || envProcess.VITE_GEMINI_API_KEY 
-      || envProcess.API_KEY 
-      || envProcess.EXAMPLE_KEY
-      || metaEnv.VITE_GEMINI_API_KEY 
-      || metaEnv.GEMINI_API_KEY 
-      || metaEnv.API_KEY 
-      || metaEnv.EXAMPLE_KEY 
+export const resetAiClient = () => {
+  aiClient = null;
+};
+
+export const getApiKey = (): string => {
+  let key = '';
+  if (typeof window !== 'undefined') {
+    try {
+      key = window.localStorage.getItem('GEMINI_API_KEY') 
+        || window.localStorage.getItem('VITE_GEMINI_API_KEY') 
+        || (window as any).__GEMINI_API_KEY__ 
+        || (window as any).GEMINI_API_KEY 
+        || '';
+    } catch {}
+  }
+  if (!key) {
+    key = 
+      process.env.GEMINI_API_KEY 
+      || process.env.VITE_GEMINI_API_KEY 
+      || process.env.API_KEY 
+      || (typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_GEMINI_API_KEY)
+      || (typeof import.meta !== 'undefined' && (import.meta as any).env?.GEMINI_API_KEY)
       || '';
-    if (!apiKey) {
-      throw new Error("Gemini API key is not configured. Please set GEMINI_API_KEY.");
-    }
+  }
+  return String(key || '').trim().replace(/^["']|["']$/g, '');
+};
+
+const getAiClient = (): GoogleGenAI => {
+  const apiKey = getApiKey();
+  if (!apiKey) {
+    throw new Error("Gemini API key is not configured. Please set GEMINI_API_KEY.");
+  }
+  if (!aiClient) {
     aiClient = new GoogleGenAI({ 
       apiKey
     });
@@ -115,11 +132,15 @@ export const validateLegsWithGemini = async (legs: Leg[]): Promise<ValidationRes
     \`\`\`
   `;
 
-  // Helper function to call Gemini with automatic retry on 429 rate limit
-  const executeCallWithRetry = async (retries = 2, delayMs = 2500): Promise<any> => {
+  // Candidate models with separate quotas. If primary encounters 429 quota or rate limits,
+  // we automatically fall back to gemini-3.1-flash-lite or gemini-flash-latest.
+  const candidateModels = ["gemini-3.8-flash", "gemini-3.1-flash-lite", "gemini-flash-latest"];
+
+  const executeCallWithRetry = async (modelIdx = 0, retryCount = 1, delayMs = 2500): Promise<any> => {
+    const activeModel = candidateModels[modelIdx] || candidateModels[0];
     try {
       return await ai.models.generateContent({
-        model: "gemini-3.8-flash",
+        model: activeModel,
         contents: prompt,
         config: {
           tools: [{ googleSearch: {} }],
@@ -128,11 +149,20 @@ export const validateLegsWithGemini = async (legs: Leg[]): Promise<ValidationRes
       });
     } catch (err: any) {
       const errMsg = String(err?.message || err);
-      const isQuota = errMsg.includes('429') || errMsg.includes('quota') || errMsg.includes('exhausted') || errMsg.includes('LIMIT');
-      if (isQuota && retries > 0) {
-        console.warn(`[Gemini API] Quota/Rate limit hit (429). Retrying in ${delayMs}ms... (${retries} retries left)`);
-        await new Promise(resolve => setTimeout(resolve, delayMs));
-        return executeCallWithRetry(retries - 1, delayMs * 1.5);
+      const isQuota = errMsg.includes('429') || errMsg.includes('quota') || errMsg.includes('exhausted') || errMsg.includes('LIMIT') || errMsg.includes('RESOURCE_EXHAUSTED');
+      
+      if (isQuota) {
+        if (retryCount > 0) {
+          console.warn(`[Gemini API] 429 quota/rate limit on ${activeModel}. Retrying in ${delayMs}ms...`);
+          await new Promise(resolve => setTimeout(resolve, delayMs));
+          return executeCallWithRetry(modelIdx, retryCount - 1, delayMs * 1.5);
+        }
+        if (modelIdx < candidateModels.length - 1) {
+          const nextModel = candidateModels[modelIdx + 1];
+          console.warn(`[Gemini API] Quota reached on ${activeModel}. Falling back to alternative model ${nextModel}...`);
+          await new Promise(resolve => setTimeout(resolve, 1500));
+          return executeCallWithRetry(modelIdx + 1, 1, 2500);
+        }
       }
       throw err;
     }
@@ -214,16 +244,20 @@ export const validateLegsWithGemini = async (legs: Leg[]): Promise<ValidationRes
 
   } catch (error: any) {
     const errMsg = String(error?.message || error);
-    const isQuota = errMsg.includes('429') || errMsg.includes('quota') || errMsg.includes('exhausted') || errMsg.includes('LIMIT');
+    const isQuota = errMsg.includes('429') || errMsg.includes('quota') || errMsg.includes('exhausted') || errMsg.includes('RESOURCE_EXHAUSTED');
     const isLeaked = errMsg.includes('leaked') || errMsg.includes('PERMISSION_DENIED') || errMsg.includes('403');
-    const isMissingKey = errMsg.includes('API key') || errMsg.includes('apiKey');
+    const isInvalidKey = errMsg.includes('API_KEY_INVALID') || errMsg.includes('API key not valid') || errMsg.includes('INVALID_ARGUMENT');
+    const isMissingKey = errMsg.includes('not configured') || errMsg.includes('missing') || errMsg.includes('Missing API key');
 
-    if (isLeaked) {
+    if (isInvalidKey) {
+      console.error("Gemini Validation Error: Invalid API key.", errMsg);
+      throw new Error("Gemini API key is invalid or incomplete. Please verify the key in your Netlify environment variables.");
+    } else if (isLeaked) {
       console.error("Gemini Validation Error: API key was revoked (reported as leaked).", errMsg);
       throw new Error("API key was reported as leaked and revoked by Google. Please generate a fresh GEMINI_API_KEY.");
     } else if (isQuota) {
       console.warn("Gemini Validation Warning (Quota Limit Exceeded):", errMsg);
-      throw new Error("Gemini API rate limit or quota exceeded (429). Please try again later or settle manually.");
+      throw new Error("Gemini API rate limit or quota exceeded (429). Please try again in a few moments, or settle manually.");
     } else if (isMissingKey) {
       console.error("Gemini Validation Error: Missing API key.", errMsg);
       throw new Error("Gemini API key is not configured. Please set GEMINI_API_KEY.");

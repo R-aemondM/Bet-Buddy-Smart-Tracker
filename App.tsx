@@ -218,8 +218,8 @@ const App: React.FC = () => {
     }
 
     // Batch the pending legs to process them.
-    // Batch size of 8 legs is an excellent balance of search capability, token limits, and efficiency.
-    const BATCH_SIZE = 8;
+    // Batch size of 10 legs minimizes total API roundtrips and prevents rate limit spikes.
+    const BATCH_SIZE = 10;
     const legBatches: Leg[][] = [];
     for (let i = 0; i < allPendingLegs.length; i += BATCH_SIZE) {
       legBatches.push(allPendingLegs.slice(i, i + BATCH_SIZE));
@@ -306,11 +306,15 @@ const App: React.FC = () => {
 
       } catch (err: any) {
         const errMsg = String(err?.message || err);
-        const isQuota = errMsg.includes('429') || errMsg.includes('quota') || errMsg.includes('exhausted') || errMsg.includes('LIMIT');
+        const isQuota = errMsg.includes('429') || errMsg.includes('quota') || errMsg.includes('exhausted') || errMsg.includes('RESOURCE_EXHAUSTED');
         const isLeaked = errMsg.includes('leaked') || errMsg.includes('PERMISSION_DENIED') || errMsg.includes('403');
-        const isMissingKey = errMsg.includes('configured') || errMsg.includes('missing') || errMsg.includes('API key');
+        const isInvalidKey = errMsg.includes('invalid') || errMsg.includes('API_KEY_INVALID');
+        const isMissingKey = errMsg.includes('configured') || errMsg.includes('missing');
 
-        if (isLeaked) {
+        if (isInvalidKey) {
+          console.error(`Autocheck batch failed (invalid key):`, errMsg);
+          setGeminiError('invalid_key');
+        } else if (isLeaked) {
           console.error(`Autocheck batch failed (leaked key):`, errMsg);
           setGeminiError('leaked_key');
         } else if (isQuota) {
@@ -335,7 +339,7 @@ const App: React.FC = () => {
 
       // If we have more batches, wait a safe throttle delay to respect free-tier per-minute rate limits
       if (b < legBatches.length - 1) {
-        await new Promise(resolve => setTimeout(resolve, 2000));
+        await new Promise(resolve => setTimeout(resolve, 3500));
       }
     }
     
@@ -601,6 +605,8 @@ const App: React.FC = () => {
                 <h4 className="font-bold text-textMain">
                   {geminiError === 'quota'
                     ? 'Gemini API Quota Exceeded (429)'
+                    : geminiError === 'invalid_key'
+                    ? 'Gemini API Key Invalid'
                     : geminiError === 'leaked_key'
                     ? 'Gemini API Key Revoked by Google'
                     : geminiError === 'missing_key'
@@ -610,6 +616,8 @@ const App: React.FC = () => {
                 <p className="text-sm text-textMuted mt-0.5 leading-relaxed">
                   {geminiError === 'quota'
                     ? "Your Gemini API free-tier quota is currently exhausted (429 rate limit). Automatic background checks are temporarily paused. You can still settle your bet slips manually using the manual settlement (Gavel) icon on any active slip."
+                    : geminiError === 'invalid_key'
+                    ? "The configured GEMINI_API_KEY appears to be invalid or incomplete. Please check your key in Google AI Studio and update the environment variable in Netlify."
                     : geminiError === 'leaked_key'
                     ? "Google automatically blocked this Gemini API key because it was exposed in the public code/repository. A fresh GEMINI_API_KEY needs to be generated in Google AI Studio. In the meantime, you can manually settle any bet slip using the Gavel icon."
                     : geminiError === 'missing_key'
